@@ -1,0 +1,64 @@
+name: Sync TV Logos BR/US
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/sync-tv-logos.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Clone source logos
+        run: |
+          rm -rf /tmp/tv-logos-source
+          git clone --filter=blob:none --sparse https://github.com/tv-logo/tv-logos.git /tmp/tv-logos-source
+          cd /tmp/tv-logos-source
+          git sparse-checkout set countries/brazil countries/united-states
+
+      - name: Copy Brazil and United States logos
+        run: |
+          rm -rf countries
+          mkdir -p countries
+          cp -R /tmp/tv-logos-source/countries/brazil countries/brazil
+          cp -R /tmp/tv-logos-source/countries/united-states countries/united-states
+          cat > README.md <<'EOF'
+          # TV Logos BR/US
+
+          Logos de TV separadas por país.
+
+          ## Estrutura
+
+          ```text
+          countries/
+            brazil/
+            united-states/
+          ```
+
+          Fonte original: https://github.com/tv-logo/tv-logos
+
+          Este repositório mantém apenas as logos do Brasil e dos Estados Unidos.
+          EOF
+
+      - name: Commit and push logos
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md countries
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Sync Brazil and United States TV logos"
+          git push
